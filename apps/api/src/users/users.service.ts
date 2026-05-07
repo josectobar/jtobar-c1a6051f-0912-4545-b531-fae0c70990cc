@@ -1,9 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Repository } from 'typeorm/browser/repository/Repository.js';
+import { User } from '../users/user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm/browser/data-source/index.js';
 
 @Injectable()
 export class UsersService {
+  constructor(
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+    private dataSource: DataSource, // Inject DataSource for transaction unit of work
+  ) {}
   create(createUserDto: CreateUserDto) {
     return 'This action adds a new user';
   }

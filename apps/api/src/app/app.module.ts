@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { UsersModule } from './users.module';
+import { User } from '../users/user.entity';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { UsersModule } from './users.module';
       username: 'postgres',
       password: 'password',
       database: 'mydb',
-      entities: [],
+      autoLoadEntities: true, // AutoRegitering entities
       synchronize: true, // Set to false in production
     }),
     UsersModule,
