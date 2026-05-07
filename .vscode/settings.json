@@ -1,0 +1,3 @@
+{
+  "jest.jestCommandLine": "pnpm exec jest --config apps/api/jest.config.cts"
+}
