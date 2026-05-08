@@ -10,7 +10,6 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    private dataSource: DataSource, // Inject DataSource for transaction unit of work
   ) {}
   create(createUserDto: CreateUserDto) {
     const user = this.usersRepository.create(createUserDto);
