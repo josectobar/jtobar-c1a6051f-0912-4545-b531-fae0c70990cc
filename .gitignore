@@ -49,3 +49,4 @@ __screenshots__/
 
 # Environment variables
 .env
+package-lock.json
