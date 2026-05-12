@@ -1,16 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcrypt';
+import { Task } from '../tasks/entities/task.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private readonly usersRepository: Repository<User>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -20,6 +23,8 @@ export class UsersService {
       lastName: createUserDto.lastName,
       email: createUserDto.email,
       password: hashed,
+      role: createUserDto.role,
+      orgId: createUserDto.orgId,
     });
     return this.usersRepository.save(user);
   }
@@ -38,9 +43,7 @@ export class UsersService {
 
   async findOne(id: number) {
     const user = await this.usersRepository.findOneBy({ id });
-    if (!user) {
-      throw new NotFoundException(`User #${id} not found`);
-    }
+    if (!user) throw new NotFoundException(`User #${id} not found`);
     return user;
   }
 
@@ -51,6 +54,26 @@ export class UsersService {
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.usersRepository.delete(id);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Step 1: nullify createdById on tasks this user created
+      await queryRunner.manager.update(Task, { createdById: id }, { createdById: null });
+
+      // Step 2: delete the user
+      await queryRunner.manager.delete(User, { id });
+
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+
+    return { deleted: true };
   }
 }
