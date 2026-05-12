@@ -16,9 +16,10 @@ const mockUser = {
 
 describe('UsersService', () => {
   let service: UsersService;
+  let module: TestingModule;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         UsersService,
         {
@@ -30,7 +31,11 @@ describe('UsersService', () => {
             findOneBy: jest.fn().mockResolvedValue(mockUser),
             update: jest.fn().mockResolvedValue({ affected: 1 }),
             delete: jest.fn().mockResolvedValue({ affected: 1 }),
-            createQueryBuilder: jest.fn(),
+            createQueryBuilder: jest.fn().mockReturnValue({
+              addSelect: jest.fn().mockReturnThis(),
+              where: jest.fn().mockReturnThis(),
+              getOne: jest.fn().mockResolvedValue(mockUser),
+            }),
           },
         },
       ],
@@ -57,6 +62,16 @@ describe('UsersService', () => {
       const result = await service.create(dto);
 
       expect(bcrypt.hash).toHaveBeenCalledWith('plaintext', 10);
+      expect(result).toEqual(mockUser);
+    });
+  });
+
+  describe('findByEmail', () => {
+    it('uses query builder and selects the password column', async () => {
+      const repo = module.get(getRepositoryToken(User));
+      const result = await service.findByEmail('john.doe@example.com');
+      expect(repo.createQueryBuilder).toHaveBeenCalledWith('user');
+      expect(repo.createQueryBuilder().addSelect).toHaveBeenCalledWith('user.password');
       expect(result).toEqual(mockUser);
     });
   });

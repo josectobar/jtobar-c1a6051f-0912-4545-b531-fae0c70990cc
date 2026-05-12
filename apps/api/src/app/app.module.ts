@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
       password: 'password',
       database: 'mydb',
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: process.env['NODE_ENV'] !== 'production',
     }),
     UsersModule,
     AuthModule,

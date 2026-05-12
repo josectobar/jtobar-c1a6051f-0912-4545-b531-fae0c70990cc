@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 
 const mockConfigService = {
-  get: jest.fn().mockReturnValue('test-secret'),
+  getOrThrow: jest.fn().mockReturnValue('test-secret'),
 } as unknown as ConfigService;
 
 describe('JwtStrategy', () => {
