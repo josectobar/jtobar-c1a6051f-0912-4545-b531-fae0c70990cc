@@ -47,3 +47,4 @@ Thumbs.db
 
 __screenshots__/
 .env
+package-lock.json
