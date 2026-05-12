@@ -24,7 +24,7 @@ export class User {
   email!: string;
 
   @Column({ select: false, nullable: true })
-  password!: string;
+  password!: string | null;
 
   @Column({ type: 'enum', enum: UserRole, nullable: true })
   role!: UserRole | null;

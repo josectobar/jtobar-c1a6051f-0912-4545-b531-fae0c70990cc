@@ -21,13 +21,13 @@ export class Task {
   title!: string;
 
   @Column({ nullable: true })
-  description!: string;
+  description!: string | null;
 
   @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.Todo })
   status!: TaskStatus;
 
   @Column({ nullable: true })
-  category!: string;
+  category!: string | null;
 
   @Index()
   @Column({ nullable: true, type: 'int' })

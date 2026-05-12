@@ -4,6 +4,7 @@ import { Repository, DataSource } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
+import { Task } from '../tasks/entities/task.entity';
 
 @Injectable()
 export class UsersService {
@@ -42,8 +43,8 @@ export class UsersService {
     await queryRunner.startTransaction();
 
     try {
-      // Step 1: nullify createdBy on tasks this user created
-      await queryRunner.manager.update('task', { createdById: id }, { createdById: null });
+      // Step 1: nullify createdById on tasks this user created
+      await queryRunner.manager.update(Task, { createdById: id }, { createdById: null });
 
       // Step 2: delete the user
       await queryRunner.manager.delete(User, { id });
@@ -55,5 +56,7 @@ export class UsersService {
     } finally {
       await queryRunner.release();
     }
+
+    return { deleted: true };
   }
 }
