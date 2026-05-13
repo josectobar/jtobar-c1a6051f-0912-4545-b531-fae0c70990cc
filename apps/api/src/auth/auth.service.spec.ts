@@ -9,7 +9,7 @@ import { UserRole } from '../users/entities/user-role.enum';
 
 jest.mock('bcrypt');
 
-const mockUser = { id: 1, email: 'test@example.com', password: 'hashed' };
+const mockUser = { id: 1, email: 'test@example.com', password: 'hashed', role: UserRole.Owner, orgId: 1 };
 
 const mockQueryRunner = {
   connect: jest.fn(),
@@ -63,8 +63,8 @@ describe('AuthService', () => {
       expect(jwtService.sign).toHaveBeenCalledWith({
         sub: mockUser.id,
         email: mockUser.email,
-        role: undefined,
-        orgId: undefined,
+        role: mockUser.role,
+        orgId: mockUser.orgId,
       });
     });
 

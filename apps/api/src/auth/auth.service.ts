@@ -41,6 +41,7 @@ export class AuthService {
   }
 
   async signUp(dto: SignUpDto) {
+    const hashed = await bcrypt.hash(dto.password, 10);
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
@@ -49,7 +50,6 @@ export class AuthService {
         name: dto.orgName,
         parentOrgId: null,
       });
-      const hashed = await bcrypt.hash(dto.password, 10);
       const user = await qr.manager.save(User, {
         firstName: dto.firstName,
         lastName: dto.lastName,

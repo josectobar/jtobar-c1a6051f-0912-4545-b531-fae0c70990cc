@@ -27,12 +27,12 @@ export class TasksService {
       return [user.orgId];
     }
 
-    const children = await this.orgsRepository.find({
+    const childOrgs = await this.orgsRepository.find({
       select: ['id'],
       where: { parentOrgId: user.orgId },
     });
 
-    return [user.orgId, ...children.map((o) => o.id)];
+    return [user.orgId, ...childOrgs.map((o) => o.id)];
   }
 
   async create(dto: CreateTaskDto, user: JwtPayload): Promise<Task> {
