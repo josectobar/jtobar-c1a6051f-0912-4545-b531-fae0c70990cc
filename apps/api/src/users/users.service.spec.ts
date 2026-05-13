@@ -86,6 +86,7 @@ describe('UsersService', () => {
         lastName: 'Doe',
         email: 'john.doe@example.com',
         password: 'plaintext',
+        role: UserRole.Admin,
       };
 
       const result = await service.create(dto, mockCaller);
@@ -103,7 +104,7 @@ describe('UsersService', () => {
     });
 
     it('throws ForbiddenException when caller has no orgId', async () => {
-      const dto = { firstName: 'J', lastName: 'D', email: 'j@d.com', password: 'pass1234' };
+      const dto = { firstName: 'J', lastName: 'D', email: 'j@d.com', password: 'pass1234', role: UserRole.Admin };
       const callerNoOrg: JwtPayload = { ...mockCaller, orgId: null };
       await expect(service.create(dto, callerNoOrg)).rejects.toThrow(ForbiddenException);
     });
