@@ -1,5 +1,1 @@
-export enum UserRole {
-  Owner = 'Owner',
-  Admin = 'Admin',
-  Viewer = 'Viewer',
-}
+export { UserRole } from '@taskMgr/auth';

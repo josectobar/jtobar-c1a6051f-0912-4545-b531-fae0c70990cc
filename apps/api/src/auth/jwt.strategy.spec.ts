@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { UserRole } from '@taskMgr/auth';
 import { JwtStrategy } from './jwt.strategy';
 
 const mockConfigService = {
@@ -13,9 +14,19 @@ describe('JwtStrategy', () => {
   });
 
   describe('validate', () => {
-    it('returns userId from payload sub', () => {
-      const result = strategy.validate({ sub: 42 });
-      expect(result).toEqual({ userId: 42 });
+    it('returns full JwtPayload from token claims', () => {
+      const result = strategy.validate({
+        sub: 42,
+        email: 'u@test.com',
+        role: UserRole.Admin,
+        orgId: 10,
+      });
+      expect(result).toEqual({ id: 42, email: 'u@test.com', role: UserRole.Admin, orgId: 10 });
+    });
+
+    it('handles null role and orgId', () => {
+      const result = strategy.validate({ sub: 1, email: 'x@x.com', role: null, orgId: null });
+      expect(result).toEqual({ id: 1, email: 'x@x.com', role: null, orgId: null });
     });
   });
 });
