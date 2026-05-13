@@ -1,10 +1,4 @@
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { TaskStatus } from '../entities/task-status.enum';
 
 export class CreateTaskDto {
@@ -23,11 +17,4 @@ export class CreateTaskDto {
   @IsOptional()
   @IsString()
   category?: string;
-
-  @IsNumber()
-  orgId!: number;
-
-  @IsOptional()
-  @IsNumber()
-  createdById?: number;
 }
