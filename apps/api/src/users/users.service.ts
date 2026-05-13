@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { JwtPayload, UserRole } from '@taskMgr/auth';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -16,15 +17,17 @@ export class UsersService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const hashed = await bcrypt.hash(createUserDto.password, 10);
+  async create(dto: CreateUserDto, caller: JwtPayload) {
+    if (dto.role === UserRole.Owner) throw new ForbiddenException();
+    if (caller.orgId == null) throw new ForbiddenException();
+    const hashed = await bcrypt.hash(dto.password, 10);
     const user = this.usersRepository.create({
-      firstName: createUserDto.firstName,
-      lastName: createUserDto.lastName,
-      email: createUserDto.email,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
       password: hashed,
-      role: createUserDto.role,
-      orgId: createUserDto.orgId,
+      role: dto.role,
+      orgId: caller.orgId,
     });
     return this.usersRepository.save(user);
   }

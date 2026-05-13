@@ -1,6 +1,8 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import { getDataSourceToken, getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { JwtPayload, UserRole } from '@taskMgr/auth';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 
@@ -12,6 +14,29 @@ const mockUser = {
   lastName: 'Doe',
   email: 'john.doe@example.com',
   password: 'hashed-password',
+};
+
+const mockCaller: JwtPayload = {
+  id: 10,
+  email: 'owner@example.com',
+  role: UserRole.Owner,
+  orgId: 5,
+};
+
+const mockQueryRunner = {
+  connect: jest.fn().mockResolvedValue(undefined),
+  startTransaction: jest.fn().mockResolvedValue(undefined),
+  commitTransaction: jest.fn().mockResolvedValue(undefined),
+  rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+  release: jest.fn().mockResolvedValue(undefined),
+  manager: {
+    update: jest.fn().mockResolvedValue(undefined),
+    delete: jest.fn().mockResolvedValue(undefined),
+  },
+};
+
+const mockDataSource = {
+  createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
 };
 
 describe('UsersService', () => {
@@ -38,6 +63,10 @@ describe('UsersService', () => {
             }),
           },
         },
+        {
+          provide: getDataSourceToken(),
+          useValue: mockDataSource,
+        },
       ],
     }).compile();
 
@@ -49,7 +78,7 @@ describe('UsersService', () => {
   });
 
   describe('create', () => {
-    it('hashes the password before saving', async () => {
+    it('hashes the password and sets orgId from caller', async () => {
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
 
       const dto = {
@@ -59,10 +88,24 @@ describe('UsersService', () => {
         password: 'plaintext',
       };
 
-      const result = await service.create(dto);
+      const result = await service.create(dto, mockCaller);
 
       expect(bcrypt.hash).toHaveBeenCalledWith('plaintext', 10);
       expect(result).toEqual(mockUser);
+    });
+
+    it('throws ForbiddenException when role Owner is submitted', async () => {
+      const dto = {
+        firstName: 'J', lastName: 'D', email: 'j@d.com', password: 'pass1234',
+        role: UserRole.Owner,
+      };
+      await expect(service.create(dto, mockCaller)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when caller has no orgId', async () => {
+      const dto = { firstName: 'J', lastName: 'D', email: 'j@d.com', password: 'pass1234' };
+      const callerNoOrg: JwtPayload = { ...mockCaller, orgId: null };
+      await expect(service.create(dto, callerNoOrg)).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -98,9 +141,11 @@ describe('UsersService', () => {
   });
 
   describe('remove', () => {
-    it('removes a user', async () => {
+    it('removes a user via transaction', async () => {
       const result = await service.remove(1);
-      expect(result).toEqual({ affected: 1 });
+      expect(mockQueryRunner.manager.update).toHaveBeenCalled();
+      expect(mockQueryRunner.manager.delete).toHaveBeenCalled();
+      expect(result).toEqual({ deleted: true });
     });
   });
 });

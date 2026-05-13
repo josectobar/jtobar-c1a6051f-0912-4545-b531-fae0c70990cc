@@ -2,7 +2,6 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   MinLength,
@@ -29,8 +28,4 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
-
-  @IsOptional()
-  @IsNumber()
-  orgId?: number;
 }
