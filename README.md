@@ -1,4 +1,43 @@
-# JtobarC1a6051f09124545B531Fae0c70990cc
+# TaskFlow
+
+## Frontend
+
+### Running the app
+
+Start both servers in separate terminals:
+
+```bash
+nx serve api       # backend on http://localhost:3000
+nx serve frontend  # Angular app on http://localhost:4200
+```
+
+The Angular dev server proxies all `/api/*` requests to the backend automatically.
+
+### Demo credentials
+
+Seed users (created by `nx run api:seed` if available, or register via `POST /api/auth/signup`):
+
+| Email | Role |
+|---|---|
+| owner@example.com | Owner |
+| admin@example.com | Admin |
+| viewer@example.com | Viewer |
+
+### Running frontend tests
+
+```bash
+nx test frontend
+```
+
+### Deferred features (planned, not yet implemented)
+
+- **Progress view** — task completion metrics dashboard
+- **Members** — org member management UI
+- **Audit log** — activity history view
+- **Settings** — org and user settings page
+- **Drag-and-drop** — reorder tasks by drag
+- **Charts** — status/category breakdown visualizations
+- **Dark mode** — system-aware color scheme toggle
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 

@@ -1,30 +1,26 @@
 {
-  "name": "dashboard",
+  "name": "frontend",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "prefix": "app",
-  "sourceRoot": "apps/dashboard/src",
-  "tags": ["scope:dashboard"],
+  "sourceRoot": "apps/frontend/src",
+  "tags": [],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/apps/dashboard",
-        "browser": "apps/dashboard/src/main.ts",
-        "tsConfig": "apps/dashboard/tsconfig.app.json",
+        "outputPath": "dist/apps/frontend",
+        "browser": "apps/frontend/src/main.ts",
+        "tsConfig": "apps/frontend/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
         "assets": [
           {
             "glob": "**/*",
-            "input": "apps/dashboard/public"
+            "input": "apps/frontend/public"
           }
         ],
-        "styles": ["apps/dashboard/src/styles.css"],
-        "server": "apps/dashboard/src/main.server.ts",
-        "ssr": {
-          "entry": "apps/dashboard/src/server.ts"
-        },
-        "outputMode": "server"
+        "styles": ["apps/frontend/src/tailwind.css", "apps/frontend/src/styles.scss"]
       },
       "configurations": {
         "production": {
@@ -53,12 +49,15 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {
+        "proxyConfig": "apps/frontend/proxy.conf.json"
+      },
       "configurations": {
         "production": {
-          "buildTarget": "dashboard:build:production"
+          "buildTarget": "frontend:build:production"
         },
         "development": {
-          "buildTarget": "dashboard:build:development"
+          "buildTarget": "frontend:build:development"
         }
       },
       "defaultConfiguration": "development"
@@ -74,9 +73,8 @@
       "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "dashboard:build",
-        "port": 4200,
-        "staticFilePath": "dist/apps/dashboard/browser",
+        "buildTarget": "frontend:build",
+        "staticFilePath": "dist/apps/frontend/browser",
         "spa": true
       }
     }
