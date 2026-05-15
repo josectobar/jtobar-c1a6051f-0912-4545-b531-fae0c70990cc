@@ -1,140 +1,565 @@
 # TaskFlow
 
-## Frontend
+A full-stack task management application built with NestJS, Angular 21, and PostgreSQL in an NX monorepo.
 
-### Running the app
+---
 
-Start both servers in separate terminals:
+## Table of Contents
+
+1. [Setup Instructions](#setup-instructions)
+2. [Architecture Overview](#architecture-overview)
+3. [Data Model](#data-model)
+4. [Access Control Implementation](#access-control-implementation)
+5. [API Documentation](#api-documentation)
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Node.js | 20+ |
+| pnpm | 9+ |
+| PostgreSQL | 14+ |
+
+### Install Dependencies
 
 ```bash
-nx serve api       # backend on http://localhost:3000
-nx serve frontend  # Angular app on http://localhost:4200
+pnpm install
 ```
 
-The Angular dev server proxies all `/api/*` requests to the backend automatically.
+### Environment Configuration
 
-### Demo credentials
-
-Seed users (created by `nx run api:seed` if available, or register via `POST /api/auth/signup`):
-
-| Email | Role |
-|---|---|
-| owner@example.com | Owner |
-| admin@example.com | Admin |
-| viewer@example.com | Viewer |
-
-### Running frontend tests
+Create a `.env` file at the **repository root** (next to `nx.json`). The API loads it automatically via `@nestjs/config`.
 
 ```bash
-nx test frontend
+cp apps/api/.env.example .env
 ```
 
-### Deferred features (planned, not yet implemented)
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `JWT_SECRET` | Secret used to sign JWTs — change in production | `change-me-in-production` |
+| `JWT_EXPIRES_IN` | Token expiry (ms/zeit format) | `3600s` |
+| `DB_HOST` | PostgreSQL host | `localhost` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_USERNAME` | PostgreSQL user | `postgres` |
+| `DB_PASSWORD` | PostgreSQL password | `password` |
+| `DB_NAME` | Database name | `taskflow` |
+| `DB_SSL` | Enable SSL for the DB connection (`true`/`false`) | `false` |
 
-- **Progress view** — task completion metrics dashboard
-- **Members** — org member management UI
-- **Audit log** — activity history view
-- **Settings** — org and user settings page
-- **Drag-and-drop** — reorder tasks by drag
-- **Charts** — status/category breakdown visualizations
-- **Dark mode** — system-aware color scheme toggle
+> **Note:** `DB_SSL=true` configures the connection with `rejectUnauthorized: false` (suitable for managed cloud databases). Set to `false` for local development.
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+### Running the Applications
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+Open two terminal windows:
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/nest?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+```bash
+# Terminal 1 — NestJS API (http://localhost:3000)
+nx serve api
 
-## Run tasks
-
-To run the dev server for your app, use:
-
-```sh
-npx nx serve api
+# Terminal 2 — Angular frontend (http://localhost:4200)
+nx serve frontend
 ```
 
-To create a production bundle:
+The Angular dev server automatically proxies all `/api/*` requests to `http://localhost:3000` via `apps/frontend/proxy.conf.json`.
 
-```sh
-npx nx build api
+### Seeding the Database
+
+```bash
+nx run api:seed
 ```
 
-To see all available targets to run for a project, run:
+This creates three demo users across a sample organization:
 
-```sh
-npx nx show project api
+| Email | Password | Role |
+|-------|----------|------|
+| `owner@example.com` | `password123` | Owner |
+| `admin@example.com` | `password123` | Admin |
+| `viewer@example.com` | `password123` | Viewer |
+
+### Running Tests
+
+```bash
+nx test api          # NestJS unit tests (Jest)
+nx test frontend     # Angular unit tests (Vitest)
+nx e2e api-e2e       # End-to-end tests (Playwright)
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+---
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Architecture Overview
 
-## Add new projects
+### Why an NX Monorepo?
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+The codebase uses [NX](https://nx.dev) to manage both applications and their shared code in a single repository. Key benefits:
 
-Use the plugin's generator to create new projects.
+- **Shared libraries** — code shared between backend and frontend is in `libs/` and imported by both without publishing to a registry.
+- **Unified toolchain** — a single `pnpm install`, consistent lint/test/build configuration, and NX's computation cache for fast rebuilds.
+- **Dependency graph** — `nx graph` visualises the project dependency tree and enforces boundary rules.
 
-To generate a new application, use:
+### Project Layout
 
-```sh
-npx nx g @nx/nest:app demo
+```
+.
+├── apps/
+│   ├── api/                  # NestJS 11 backend
+│   │   └── src/
+│   │       ├── app/          # Root module, TypeORM config
+│   │       ├── auth/         # JWT strategy, guards, login/sign-up
+│   │       ├── users/        # Users CRUD
+│   │       ├── tasks/        # Tasks CRUD
+│   │       ├── organizations/# Organizations CRUD
+│   │       └── seed.ts       # Database seeding script
+│   │
+│   ├── frontend/             # Angular 21 SPA
+│   │   └── src/app/
+│   │       ├── auth/         # Login component, auth service, interceptor, guards
+│   │       ├── shell/        # Layout wrapper component
+│   │       └── tasks/        # Task list, task form dialog
+│   │
+│   └── api-e2e/              # end-to-end tests
+│
+├── libs/
+│   └── auth/                 # Shared auth library (@taskMgr/auth)
+│       └── src/lib/
+│           ├── user-role.enum.ts
+│           ├── jwt-payload.interface.ts
+│           ├── permissions.config.ts
+│           ├── roles.decorator.ts
+│           └── roles.guard.ts
+│
+├── nx.json                   # NX workspace config
+├── pnpm-workspace.yaml
+└── tsconfig.base.json        # Path alias: @taskMgr/auth → libs/auth/src/index.ts
 ```
 
-To generate a new library, use:
+### Projects at a Glance
 
-```sh
-npx nx g @nx/node:lib mylib
+| Project | Type | Stack | Port |
+|---------|------|-------|------|
+| `api` | Application | NestJS 11, TypeORM, PostgreSQL, Passport JWT | 3000 |
+| `frontend` | Application | Angular 21, Angular Material, Tailwind CSS 4 | 4200 |
+| `api-e2e` | E2E tests | — |
+| `auth` | Library | TypeScript | — |
+
+### Shared Auth Library (`@taskMgr/auth`)
+
+`libs/auth` is consumed by both the API and the frontend. It exports:
+
+- `UserRole` enum — the single source of truth for role values (`Owner`, `Admin`, `Viewer`)
+- `JwtPayload` interface — the shape of the decoded JWT, used by the API strategy and the Angular auth service
+- `RolesGuard` — NestJS guard that reads `@Roles()` metadata and enforces permissions
+- `Roles` decorator — attaches required permission actions to controller methods
+- `ROLE_PERMISSIONS` — the role → permission mapping matrix
+
+Sharing this library eliminates drift between frontend and backend type definitions and ensures the permission matrix has one canonical location.
+
+---
+
+## Data Model
+
+### Entities
+
+**Organization** — represents a company or team. Supports self-referencing parent/child relationships to model org hierarchies of arbitrary depth.
+
+**User** — a system user belonging to exactly one organization with one of three roles (Owner, Admin, Viewer).
+
+**Task** — a work item scoped to an organization, optionally assigned a creator.
+
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    Organization {
+        int     id          PK
+        string  name
+        int     parentOrgId FK "nullable — self-reference"
+    }
+
+    User {
+        int     id          PK
+        string  firstName
+        string  lastName
+        string  email       "unique"
+        string  password    "bcrypt, excluded from responses"
+        enum    role        "Owner | Admin | Viewer"
+        int     orgId       FK
+    }
+
+    Task {
+        int      id           PK
+        string   title
+        string   description  "nullable"
+        enum     status       "Todo | InProgress | Done"
+        string   category     "nullable"
+        int      createdById  FK "nullable"
+        int      orgId        FK
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Organization ||--o{ Organization  : "parent → children"
+    Organization ||--o{ User          : "org → members"
+    Organization ||--o{ Task          : "org → tasks"
+    User         ||--o{ Task          : "creator → tasks"
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+### Enum Values
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+**UserRole** (`libs/auth/src/lib/user-role.enum.ts`)
 
-## Set up CI!
+| Value | Description |
+|-------|-------------|
+| `Owner` | Full access including org and user management |
+| `Admin` | Full task access; no org/user management |
+| `Viewer` | Full task access; no org/user management |
 
-### Step 1
+**TaskStatus** (`apps/api/src/tasks/entities/task-status.enum.ts`)
 
-To connect to Nx Cloud, run the following command:
+| Value | Description |
+|-------|-------------|
+| `Todo` | Not started (default) |
+| `InProgress` | In progress |
+| `Done` | Completed |
 
-```sh
-npx nx connect
+> **Schema sync:** TypeORM runs with `synchronize: true` in development (auto-creates and alters tables). In production (`NODE_ENV=production`) synchronization is disabled and migrations should be used.
+
+---
+
+## Access Control Implementation
+
+### Three-Layer Security Model
+
+Every API request passes through three layers in order:
+
+```
+Request
+  │
+  ▼
+JwtAuthGuard (global APP_GUARD)
+  │  Checks for @Public() → bypass if present
+  │  Otherwise validates Bearer token, throws 401 if invalid/missing
+  │  Populates req.user with JwtPayload
+  ▼
+RolesGuard (global APP_GUARD)
+  │  Reads @Roles(...actions) metadata from the handler
+  │  If no @Roles() → allow all authenticated users
+  │  Maps req.user.role to permission set via ROLE_PERMISSIONS
+  │  Throws 403 if required action is not in the user's permission set
+  ▼
+Controller method
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+### JWT Payload
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+```typescript
+interface JwtPayload {
+  sub: number;          // User ID
+  email: string;
+  role: UserRole | null;
+  orgId: number | null; // Organization ID
+  orgName: string | null;
+}
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+The strategy (`jwt.strategy.ts`) throws `UnauthorizedException` if `role` or `orgId` is missing from the payload, ensuring tokens issued before a user is fully provisioned are rejected.
 
-## Install Nx Console
+### Sign-Up Flow
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+`POST /api/auth/sign-up` runs inside a database transaction:
+1. Creates a new `Organization` with `parentOrgId = null`.
+2. Creates the `User` with role `Owner`, linked to the new org.
+3. Signs and returns a JWT containing the user's id, email, role, orgId, and orgName.
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+This guarantees every Owner always has an organization; a partial failure rolls back both inserts.
 
-## Useful links
+### Login Flow
 
-Learn more:
+`POST /api/auth/login`:
+1. Looks up the user by email.
+2. Verifies the plaintext password against the stored bcrypt hash (10 rounds).
+3. Signs and returns a JWT with the user's current role and org data.
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/nest?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Role → Permission Matrix
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Defined in `libs/auth/src/lib/permissions.config.ts` and shared across the monorepo.
+
+| Permission | Owner | Admin | Viewer |
+|------------|:-----:|:-----:|:------:|
+| `createTask` | ✓ | ✓ | Own |
+| `readTask` | ✓ | ✓ | ✓ |
+| `updateTask` | ✓ | ✓ | Own |
+| `deleteTask` | ✓ | ✓ | Own |
+| `manageOrg` | ✓ | — | — |
+| `manageUsers` | ✓ | — | — |
+
+### Organization Hierarchy
+
+Organizations form a tree via the `parentOrgId` self-reference. An Owner can create child organizations by supplying `parentOrgId` in `POST /api/organizations`. There is no enforced depth limit — the hierarchy can be arbitrarily deep.
+
+### Frontend Auth
+
+- JWT is stored in `localStorage` under the key `auth_token`.
+- `authInterceptor` attaches `Authorization: Bearer <token>` to every outgoing request except `/auth/login`.
+- Any `401` response triggers an automatic logout and redirect to `/login`.
+- `canModify(task)` helper returns `true` if the user is Owner/Admin **or** is the task creator — used to show/hide edit and delete buttons.
+
+---
+
+## API Documentation
+
+**Base URL:** `http://localhost:3000/api`
+
+**Authentication:** All endpoints require `Authorization: Bearer <token>` unless marked **Public**.
+
+### Endpoint Reference
+
+| Method | Path | Auth | Required Permission | Description |
+|--------|------|------|-------------------|-------------|
+| `POST` | `/auth/sign-up` | Public | — | Register; creates org + Owner user |
+| `POST` | `/auth/login` | Public | — | Login; returns JWT |
+| `GET` | `/organizations` | Public | — | List all organizations |
+| `GET` | `/organizations/:id` | Public | — | Get organization by ID |
+| `POST` | `/organizations` | JWT | `manageOrg` | Create organization (supports hierarchy) |
+| `PATCH` | `/organizations/:id` | JWT | — | Update organization |
+| `DELETE` | `/organizations/:id` | JWT | `manageOrg` | Delete organization |
+| `GET` | `/tasks` | JWT | `readTask` | List tasks (scoped to caller's org) |
+| `GET` | `/tasks/:id` | JWT | `readTask` | Get task by ID |
+| `POST` | `/tasks` | JWT | `createTask` | Create task |
+| `PATCH` | `/tasks/:id` | JWT | `updateTask` | Update task |
+| `DELETE` | `/tasks/:id` | JWT | `deleteTask` | Delete task |
+| `GET` | `/users` | JWT | `manageUsers` | List all users |
+| `GET` | `/users/:id` | JWT | `manageUsers` | Get user by ID |
+| `POST` | `/users` | JWT | `manageUsers` | Create user in org |
+| `PATCH` | `/users/:id` | JWT | `manageUsers` | Update user |
+| `DELETE` | `/users/:id` | JWT | `manageUsers` | Delete user |
+
+---
+
+### Sample Requests & Responses
+
+#### Register a new account
+
+```http
+POST /api/auth/sign-up
+Content-Type: application/json
+
+{
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "email": "jane@acme.com",
+  "password": "secret123",
+  "orgName": "Acme Corp"
+}
+```
+
+```json
+HTTP/1.1 201 Created
+
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+---
+
+#### Login
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@acme.com",
+  "password": "secret123"
+}
+```
+
+```json
+HTTP/1.1 200 OK
+
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+```json
+HTTP/1.1 401 Unauthorized
+
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+---
+
+#### Create a task
+
+```http
+POST /api/tasks
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "title": "Write unit tests",
+  "description": "Cover auth service and tasks controller",
+  "status": "Todo",
+  "category": "Engineering"
+}
+```
+
+```json
+HTTP/1.1 201 Created
+
+{
+  "id": 42,
+  "title": "Write unit tests",
+  "description": "Cover auth service and tasks controller",
+  "status": "Todo",
+  "category": "Engineering",
+  "createdById": 7,
+  "orgId": 3,
+  "createdAt": "2026-05-14T18:00:00.000Z",
+  "updatedAt": "2026-05-14T18:00:00.000Z"
+}
+```
+
+---
+
+#### List tasks
+
+```http
+GET /api/tasks
+Authorization: Bearer <token>
+```
+
+```json
+HTTP/1.1 200 OK
+
+[
+  {
+    "id": 42,
+    "title": "Write unit tests",
+    "description": "Cover auth service and tasks controller",
+    "status": "Todo",
+    "category": "Engineering",
+    "createdById": 7,
+    "orgId": 3,
+    "createdAt": "2026-05-14T18:00:00.000Z",
+    "updatedAt": "2026-05-14T18:00:00.000Z"
+  }
+]
+```
+
+---
+
+#### Update a task
+
+```http
+PATCH /api/tasks/42
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "status": "InProgress"
+}
+```
+
+```json
+HTTP/1.1 200 OK
+
+{
+  "id": 42,
+  "title": "Write unit tests",
+  "status": "InProgress",
+  "updatedAt": "2026-05-14T19:30:00.000Z"
+}
+```
+
+---
+
+#### Delete a task
+
+```http
+DELETE /api/tasks/42
+Authorization: Bearer <token>
+```
+
+```
+HTTP/1.1 204 No Content
+```
+
+---
+
+#### Create a child organization (Owner only)
+
+```http
+POST /api/organizations
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Acme Engineering",
+  "parentOrgId": 3
+}
+```
+
+```json
+HTTP/1.1 201 Created
+
+{
+  "id": 8,
+  "name": "Acme Engineering",
+  "parentOrgId": 3
+}
+```
+
+---
+
+#### Create a user in the organization (Owner only)
+
+```http
+POST /api/users
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "firstName": "Bob",
+  "lastName": "Smith",
+  "email": "bob@acme.com",
+  "password": "secret456",
+  "role": "Admin"
+}
+```
+
+```json
+HTTP/1.1 201 Created
+
+{
+  "id": 12,
+  "firstName": "Bob",
+  "lastName": "Smith",
+  "email": "bob@acme.com",
+  "role": "Admin",
+  "orgId": 3
+}
+```
+
+---
+
+#### 403 Forbidden (insufficient role)
+
+Returned when a Viewer or Admin attempts an action requiring `manageOrg` or `manageUsers`:
+
+```json
+HTTP/1.1 403 Forbidden
+
+{
+  "statusCode": 403,
+  "message": "Forbidden resource",
+  "error": "Forbidden"
+}
+```
