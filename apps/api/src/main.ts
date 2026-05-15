@@ -9,6 +9,7 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors({ origin: 'http://localhost:4200' });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   // Runs class-transformer on every response so @Exclude() decorators on entities are respected (e.g. strips password field).
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));

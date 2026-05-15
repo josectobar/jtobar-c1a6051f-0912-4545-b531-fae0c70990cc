@@ -36,6 +36,7 @@ export class UsersService {
     return this.usersRepository
       .createQueryBuilder('user')
       .addSelect('user.password')
+      .leftJoinAndSelect('user.org', 'org')
       .where('user.email = :email', { email })
       .getOne();
   }

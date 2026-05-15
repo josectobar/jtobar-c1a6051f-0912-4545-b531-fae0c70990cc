@@ -36,6 +36,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         orgId: user.orgId,
+        orgName: user.org?.name ?? null,
       }),
     };
   }
@@ -65,6 +66,7 @@ export class AuthService {
           email: user.email,
           role: user.role,
           orgId: user.orgId,
+          orgName: org.name,
         }),
       };
     } catch (err: unknown) {
