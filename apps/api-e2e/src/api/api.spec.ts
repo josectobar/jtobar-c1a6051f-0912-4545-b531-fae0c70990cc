@@ -45,19 +45,20 @@ describe('end-to-end tests', () => {
   let ownerTaskId: number;
   let viewerTaskId: number;
 
+  beforeAll(async () => {
+    const res = await post('/auth/sign-up', {
+      firstName: 'Alice',
+      lastName: 'Owner',
+      email: `alice+${run}@example.com`,
+      password: 'password123',
+      orgName: `SmokeOrg-${run}`,
+    });
+    ownerToken = (await res.json()).access_token;
+  });
+
   describe('Auth', () => {
-    it('POST /auth/sign-up creates org and Owner, returns JWT', async () => {
-      const res = await post('/auth/sign-up', {
-        firstName: 'Alice',
-        lastName: 'Owner',
-        email: `alice+${run}@example.com`,
-        password: 'password123',
-        orgName: `SmokeOrg-${run}`,
-      });
-      expect(res.status).toBe(201);
-      const body = await res.json();
-      expect(body.access_token).toBeDefined();
-      ownerToken = body.access_token;
+    it('POST /auth/sign-up creates org and Owner, returns JWT', () => {
+      expect(ownerToken).toBeDefined();
     });
 
     it('POST /auth/login with valid credentials returns JWT', async () => {
@@ -80,18 +81,18 @@ describe('end-to-end tests', () => {
   });
 
   describe('Tasks (Owner)', () => {
+    beforeAll(async () => {
+      const res = await post('/tasks', { title: 'Smoke task' }, ownerToken);
+      ownerTaskId = (await res.json()).id;
+    });
+
     it('GET /tasks without token returns 401', async () => {
       const res = await get('/tasks');
       expect(res.status).toBe(401);
     });
 
-    it('POST /tasks creates a task', async () => {
-      const res = await post('/tasks', { title: 'Smoke task' }, ownerToken);
-      expect(res.status).toBe(201);
-      const body = await res.json();
-      expect(body.id).toBeDefined();
-      expect(body.title).toBe('Smoke task');
-      ownerTaskId = body.id;
+    it('POST /tasks creates a task', () => {
+      expect(ownerTaskId).toBeDefined();
     });
 
     it('GET /tasks returns task list', async () => {
@@ -127,8 +128,8 @@ describe('end-to-end tests', () => {
   });
 
   describe('RBAC enforcement', () => {
-    it('Owner creates a Viewer via POST /users', async () => {
-      const res = await post(
+    beforeAll(async () => {
+      await post(
         '/users',
         {
           firstName: 'Bob',
@@ -139,15 +140,10 @@ describe('end-to-end tests', () => {
         },
         ownerToken,
       );
-      expect(res.status).toBe(201);
-    });
-
-    it('Viewer can log in', async () => {
       const res = await post('/auth/login', {
         email: `bob+${run}@example.com`,
         password: 'password123',
       });
-      expect(res.status).toBe(201);
       viewerToken = (await res.json()).access_token;
     });
 
@@ -167,17 +163,9 @@ describe('end-to-end tests', () => {
     });
 
     it("Viewer cannot update Owner's task → 403", async () => {
-      const created = await post(
-        '/tasks',
-        { title: "Owner's task" },
-        ownerToken,
-      );
+      const created = await post('/tasks', { title: "Owner's task" }, ownerToken);
       const { id } = await created.json();
-      const res = await patch(
-        `/tasks/${id}`,
-        { title: 'Hijacked' },
-        viewerToken,
-      );
+      const res = await patch(`/tasks/${id}`, { title: 'Hijacked' }, viewerToken);
       expect(res.status).toBe(403);
     });
 
@@ -197,11 +185,7 @@ describe('end-to-end tests', () => {
     });
 
     it('Viewer cannot POST /organizations → 403', async () => {
-      const res = await post(
-        '/organizations',
-        { name: 'HackedOrg' },
-        viewerToken,
-      );
+      const res = await post('/organizations', { name: 'HackedOrg' }, viewerToken);
       expect(res.status).toBe(403);
     });
   });

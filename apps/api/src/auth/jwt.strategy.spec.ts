@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@taskMgr/auth';
 import { JwtStrategy } from './jwt.strategy';
@@ -20,13 +21,32 @@ describe('JwtStrategy', () => {
         email: 'u@test.com',
         role: UserRole.Admin,
         orgId: 10,
+        orgName: 'Acme',
       });
-      expect(result).toEqual({ id: 42, email: 'u@test.com', role: UserRole.Admin, orgId: 10 });
+      expect(result).toEqual({ id: 42, email: 'u@test.com', role: UserRole.Admin, orgId: 10, orgName: 'Acme' });
     });
 
-    it('handles null role and orgId', () => {
-      const result = strategy.validate({ sub: 1, email: 'x@x.com', role: null, orgId: null });
-      expect(result).toEqual({ id: 1, email: 'x@x.com', role: null, orgId: null });
+    it('sets orgName to null when absent from payload', () => {
+      const result = strategy.validate({
+        sub: 42,
+        email: 'u@test.com',
+        role: UserRole.Admin,
+        orgId: 10,
+        orgName: null,
+      });
+      expect(result.orgName).toBeNull();
+    });
+
+    it('throws UnauthorizedException when role is missing', () => {
+      expect(() =>
+        strategy.validate({ sub: 1, email: 'x@x.com', role: null, orgId: 10, orgName: null }),
+      ).toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException when orgId is missing', () => {
+      expect(() =>
+        strategy.validate({ sub: 1, email: 'x@x.com', role: UserRole.Owner, orgId: null, orgName: null }),
+      ).toThrow(UnauthorizedException);
     });
   });
 });

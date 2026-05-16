@@ -65,6 +65,7 @@ describe('AuthService', () => {
         email: mockUser.email,
         role: mockUser.role,
         orgId: mockUser.orgId,
+        orgName: null,
       });
     });
 

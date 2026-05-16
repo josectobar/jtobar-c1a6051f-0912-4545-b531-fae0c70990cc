@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -19,12 +19,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     email: string;
     role: UserRole | null;
     orgId: number | null;
+    orgName: string | null;
   }): JwtPayload {
+    if (!payload.role || payload.orgId == null) {
+      throw new UnauthorizedException();
+    }
     return {
       id: payload.sub,
       email: payload.email,
-      role: payload.role ?? null,
-      orgId: payload.orgId ?? null,
+      role: payload.role,
+      orgId: payload.orgId,
+      orgName: payload.orgName ?? null,
     };
   }
 }
